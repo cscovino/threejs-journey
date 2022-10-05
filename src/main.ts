@@ -1,52 +1,26 @@
 import {
-  // MeshBasicMaterial,
   PerspectiveCamera,
   WebGLRenderer,
   Scene,
-  // MeshBasicMaterial,
   Mesh,
-  // AxesHelper,
-  // Box3,
-  // Mesh,
   TextureLoader,
   LoadingManager,
-  // NearestFilter,
-  SphereGeometry,
   PlaneGeometry,
-  TorusGeometry,
-  BoxGeometry,
   Clock,
-  // Color,
-  // DoubleSide,
-  // MeshNormalMaterial,
-  // MeshMatcapMaterial,
-  // MeshDepthMaterial,
   AmbientLight,
-  PointLight,
-  // MeshLambertMaterial,
-  // MeshPhongMaterial,
-  // MeshToonMaterial,
   MeshStandardMaterial,
   DirectionalLight,
-  CameraHelper,
+  Group,
+  BoxGeometry,
+  ConeGeometry,
+  SphereGeometry,
+  PointLight,
+  Fog,
+  Float32BufferAttribute,
+  RepeatWrapping,
   PCFSoftShadowMap,
-  // HemisphereLight,
-  // RectAreaLight,
-  // Vector3,
-  SpotLight,
-  MeshBasicMaterial,
-  // HemisphereLightHelper,
-  // DirectionalLightHelper,
-  // PointLightHelper,
-  // SpotLightHelper,
-  // BufferAttribute,
-  // CubeTextureLoader,
 } from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
-// import {RectAreaLightHelper} from 'three/examples/jsm/helpers/RectAreaLightHelper';
-// import {FontLoader} from 'three/examples/jsm/loaders/FontLoader';
-// import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry';
-// import gsap from 'gsap';
 import * as dat from 'dat.gui';
 import './style.css';
 
@@ -80,12 +54,6 @@ window.addEventListener('dblclick', () => {
 
 // Debug
 const gui = new dat.GUI();
-// const parameters = {
-//   color: 0xff0000,
-//   spin: () => {
-//     gsap.to(mesh.rotation, {duration: 1, y: mesh.rotation.y + 10});
-//   },
-// };
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement;
@@ -100,293 +68,213 @@ window.addEventListener('mousemove', (event) => {
 // Scene
 const scene = new Scene();
 
-// Axes helper
-// const axesHelper = new AxesHelper();
-// scene.add(axesHelper);
+// Fog
+const fogColor = 0x262837;
+const fog = new Fog(fogColor, 1, 15);
+scene.fog = fog;
 
 // Lights
-const ambientLight = new AmbientLight(0xffffff, 0.4);
+const ambientLight = new AmbientLight(0xb9d5ff, 0.12);
 gui.add(ambientLight, 'intensity').min(0).max(1).step(0.001);
 scene.add(ambientLight);
 
-// const hemisphereLight = new HemisphereLight(0xff0000, 0x0000ff, 0.3);
-// scene.add(hemisphereLight);
-
-const directionalLight = new DirectionalLight(0xffffff, 0.4);
-directionalLight.position.set(2, 2, -1);
-gui.add(directionalLight, 'intensity').min(0).max(1).step(0.001);
-gui.add(directionalLight.position, 'x').min(-5).max(5).step(0.001);
-gui.add(directionalLight.position, 'y').min(-5).max(5).step(0.001);
-gui.add(directionalLight.position, 'z').min(-5).max(5).step(0.001);
-scene.add(directionalLight);
-
-// directionalLight.castShadow = true;
-// directionalLight.shadow.mapSize.width = 1024;
-// directionalLight.shadow.mapSize.height = 1024;
-// directionalLight.shadow.camera.top = 2;
-// directionalLight.shadow.camera.right = 2;
-// directionalLight.shadow.camera.bottom = -2;
-// directionalLight.shadow.camera.left = -2;
-// directionalLight.shadow.camera.near = 1;
-// directionalLight.shadow.camera.far = 6;
-// directionalLight.shadow.radius = 10;
-
-const pointLight = new PointLight(0xffffff, 0.3, 10, Math.PI * 0.3);
-pointLight.position.set(-1, 1, 0);
-scene.add(pointLight);
-
-// pointLight.castShadow = true;
-// pointLight.shadow.mapSize.width = 1024;
-// pointLight.shadow.mapSize.height = 1024;
-// pointLight.shadow.camera.near = 0.1;
-// pointLight.shadow.camera.far = 5;
-
-// const rectAreaLight = new RectAreaLight(0x4e00ff, 2, 1, 1);
-// rectAreaLight.position.set(-1.5, 0, 1.5);
-// rectAreaLight.lookAt(new Vector3(0, 0, 0));
-// scene.add(rectAreaLight);
-
-const spotLight = new SpotLight(0xffffff, 0.4, 10, Math.PI * 0.3);
-spotLight.position.set(0, 2, 2);
-scene.add(spotLight);
-scene.add(spotLight.target);
-
-// spotLight.castShadow = true;
-// spotLight.shadow.mapSize.width = 1024;
-// spotLight.shadow.mapSize.height = 1024;
-// spotLight.shadow.camera.fov = 30;
-// spotLight.shadow.camera.near = 1;
-// spotLight.shadow.camera.far = 6;
+const moonLight = new DirectionalLight(0xb9d5ff, 0.12);
+moonLight.position.set(4, 5, -2);
+gui.add(moonLight, 'intensity').min(0).max(1).step(0.001);
+gui.add(moonLight.position, 'x').min(-5).max(5).step(0.001);
+gui.add(moonLight.position, 'y').min(-5).max(5).step(0.001);
+gui.add(moonLight.position, 'z').min(-5).max(5).step(0.001);
+scene.add(moonLight);
 
 // Light helpers
-// const hemisphereLightHelper = new HemisphereLightHelper(hemisphereLight, 0.2);
-// scene.add(hemisphereLightHelper);
-
-// const directionalLightHelper = new DirectionalLightHelper(
-//   directionalLight,
-//   0.2,
-// );
-// scene.add(directionalLightHelper);
-const directionalLightCameraHelper = new CameraHelper(
-  directionalLight.shadow.camera,
-);
-directionalLightCameraHelper.visible = false;
-scene.add(directionalLightCameraHelper);
-
-// const pointLightHelper = new PointLightHelper(pointLight, 0.2);
-// scene.add(pointLightHelper);
-const pointLightCameraHelper = new CameraHelper(pointLight.shadow.camera);
-pointLightCameraHelper.visible = false;
-scene.add(pointLightCameraHelper);
-
-// const rectAreaLightHelper = new RectAreaLightHelper(rectAreaLight);
-// scene.add(rectAreaLightHelper);
-
-// const spotLightHelper = new SpotLightHelper(spotLight);
-// scene.add(spotLightHelper);
-// window.requestAnimationFrame(() => spotLightHelper.update());
-const spotLightCameraHelper = new CameraHelper(spotLight.shadow.camera);
-spotLightCameraHelper.visible = false;
-scene.add(spotLightCameraHelper);
 
 // Textures
 const loadingManager = new LoadingManager();
-// loadingManager.onStart = () => console.log('onStart');
-// loadingManager.onLoad = () => console.log('onLoad');
-// loadingManager.onProgress = () => console.log('onProgress');
-// loadingManager.onError = () => console.log('onError');
-
 const textureLoader = new TextureLoader(loadingManager);
-const simpleShadow = textureLoader.load('/textures/simpleShadow.jpg');
-// const bakedShadow = textureLoader.load('/textures/bakedShadow.jpg');
-// const cubeTextureLoader = new CubeTextureLoader(loadingManager);
 
-// const colorTexture = textureLoader.load('/textures/checkerboard-1024x1024.png');
-// const colorTexture = textureLoader.load('/textures/minecraft.png');
-// colorTexture.generateMipmaps = false;
-// colorTexture.minFilter = NearestFilter;
-// colorTexture.magFilter = NearestFilter;
-// const doorColorTexture = textureLoader.load('/textures/door/color.jpg');
-// const doorAlphaTexture = textureLoader.load('/textures/door/alpha.jpg');
-// const doorHeightTexture = textureLoader.load('/textures/door/height.jpg');
-// const doorNormalTexture = textureLoader.load('/textures/door/normal.jpg');
-// const doorAmbientOcclusionTexture = textureLoader.load(
-//   '/textures/door/ambientOcclusion.jpg',
-// );
-// const doorMetalnessTexture = textureLoader.load('/textures/door/metalness.jpg');
-// const doorRoughnessTexture = textureLoader.load('/textures/door/roughness.jpg');
-// const matcapTexture = textureLoader.load('/textures/matcaps/7.png');
-// const gradientTexture = textureLoader.load('/textures/gradients/3.jpg');
-// gradientTexture.minFilter = NearestFilter;
-// gradientTexture.magFilter = NearestFilter;
-// gradientTexture.generateMipmaps = false;
+const doorColorTexture = textureLoader.load('/textures/door/color.jpg');
+const doorAlphaTexture = textureLoader.load('/textures/door/alpha.jpg');
+const doorAmbientOcclusionTexture = textureLoader.load(
+  '/textures/door/ambientOcclusion.jpg',
+);
+const doorHeightTexture = textureLoader.load('/textures/door/height.jpg');
+const doorNormalTexture = textureLoader.load('/textures/door/normal.jpg');
+const doorMetalnessTexture = textureLoader.load('/textures/door/metalness.jpg');
+const doorRoughnessTexture = textureLoader.load('/textures/door/roughness.jpg');
 
-// const environmentMapTexture = cubeTextureLoader.load([
-//   '/textures/environmentMaps/0/px.jpg',
-//   '/textures/environmentMaps/0/nx.jpg',
-//   '/textures/environmentMaps/0/py.jpg',
-//   '/textures/environmentMaps/0/ny.jpg',
-//   '/textures/environmentMaps/0/pz.jpg',
-//   '/textures/environmentMaps/0/nz.jpg',
-// ]);
+const bricksColorTexture = textureLoader.load('/textures/bricks/color.jpg');
+const bricksAmbientOcclusionTexture = textureLoader.load(
+  '/textures/bricks/ambientOcclusion.jpg',
+);
+const bricksNormalTexture = textureLoader.load('/textures/bricks/normal.jpg');
+const bricksRoughnessTexture = textureLoader.load(
+  '/textures/bricks/roughness.jpg',
+);
 
-// Fonts
-// const fontLoader = new FontLoader();
-// fontLoader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
-//   const textGeometry = new TextGeometry('Hello Three.js', {
-//     font,
-//     size: 0.5,
-//     height: 0.2,
-//     curveSegments: 5,
-//     bevelEnabled: true,
-//     bevelThickness: 0.03,
-//     bevelSize: 0.02,
-//     bevelOffset: 0,
-//     bevelSegments: 4,
-//   });
-//   textGeometry.center();
-//   // textGeometry.computeBoundingBox();
-//   // textGeometry.translate(
-//   //   -((textGeometry.boundingBox as Box3).max.x - 0.02) * 0.5,
-//   //   -((textGeometry.boundingBox as Box3).max.y - 0.02) * 0.5,
-//   //   -((textGeometry.boundingBox as Box3).max.z - 0.03) * 0.5,
-//   // );
+const grassColorTexture = textureLoader.load('/textures/grass/color.jpg');
+const grassAmbientOcclusionTexture = textureLoader.load(
+  '/textures/grass/ambientOcclusion.jpg',
+);
+const grassNormalTexture = textureLoader.load('/textures/grass/normal.jpg');
+const grassRoughnessTexture = textureLoader.load(
+  '/textures/grass/roughness.jpg',
+);
 
-//   const material = new MeshMatcapMaterial({matcap: matcapTexture});
-//   const text = new Mesh(textGeometry, material);
-//   scene.add(text);
+grassColorTexture.repeat.set(8, 8);
+grassAmbientOcclusionTexture.repeat.set(8, 8);
+grassNormalTexture.repeat.set(8, 8);
+grassRoughnessTexture.repeat.set(8, 8);
 
-//   const donutGeometry = new TorusGeometry(0.3, 0.2, 20, 45);
+grassColorTexture.wrapS = RepeatWrapping;
+grassAmbientOcclusionTexture.wrapS = RepeatWrapping;
+grassNormalTexture.wrapS = RepeatWrapping;
+grassRoughnessTexture.wrapS = RepeatWrapping;
 
-//   for (let i = 0; i < 100; i++) {
-//     const donut = new Mesh(donutGeometry, material);
+grassColorTexture.wrapT = RepeatWrapping;
+grassAmbientOcclusionTexture.wrapT = RepeatWrapping;
+grassNormalTexture.wrapT = RepeatWrapping;
+grassRoughnessTexture.wrapT = RepeatWrapping;
 
-//     donut.position.x = (Math.random() - 0.5) * 10;
-//     donut.position.y = (Math.random() - 0.5) * 10;
-//     donut.position.z = (Math.random() - 0.5) * 10;
+// House
+const house = new Group();
+scene.add(house);
 
-//     donut.rotation.x = Math.random() * Math.PI;
-//     donut.rotation.y = Math.random() * Math.PI;
+// Door Light
+const doorLight = new PointLight(0xff7d46, 1, 7);
+doorLight.position.set(0, 2.2, 2.7);
+house.add(doorLight);
 
-//     const scale = Math.random();
-//     donut.scale.set(scale, scale, scale);
+// Ghosts
+const ghost1 = new PointLight(0xff00ff, 2, 3);
+scene.add(ghost1);
 
-//     scene.add(donut);
-//   }
-// });
+const ghost2 = new PointLight(0x00ffff, 2, 3);
+scene.add(ghost2);
 
-// Objects
-// const geometry = new BoxGeometry(1, 1, 1);
-// const material = new MeshBasicMaterial({map: colorTexture});
-// const mesh = new Mesh(geometry, material);
-// scene.add(mesh);
+const ghost3 = new PointLight(0xffff00, 2, 3);
+scene.add(ghost3);
 
-// const material = new MeshBasicMaterial();
-// material.map = doorColorTexture;
-// material.color = new Color(0x00ff00);
-// material.wireframe = true;
-// material.transparent = true;
-// material.opacity = 0.5;
-// material.alphaMap = doorAlphaTexture;
-// material.side = DoubleSide;
-
-// const material = new MeshNormalMaterial();
-// material.flatShading = true
-
-// const material = new MeshMatcapMaterial();
-// material.matcap = matcapTexture;
-
-// const material = new MeshDepthMaterial();
-
-// const material = new MeshLambertMaterial();
-
-// const material = new MeshPhongMaterial();
-// material.shininess = 100;
-// material.specular = new Color(0x1188ff);
-
-// const material = new MeshToonMaterial();
-// material.gradientMap = gradientTexture;
-
-// const material = new MeshStandardMaterial();
-// material.metalness = 0;
-// material.roughness = 1;
-// material.map = doorColorTexture;
-// material.aoMap = doorAmbientOcclusionTexture;
-// material.aoMapIntensity = 1;
-// material.displacementMap = doorHeightTexture;
-// material.displacementScale = 0.05;
-// material.metalnessMap = doorMetalnessTexture;
-// material.roughnessMap = doorRoughnessTexture;
-// material.normalMap = doorNormalTexture;
-// material.normalScale.set(0.1, 0.1);
-// material.transparent = true;
-// material.alphaMap = doorAlphaTexture;
-
-const material = new MeshStandardMaterial();
-material.roughness = 0.7;
-material.metalness = 0;
-// material.envMap = environmentMapTexture;
-gui.add(material, 'metalness').min(0).max(1).step(0.0001);
-gui.add(material, 'roughness').min(0).max(1).step(0.0001);
-// gui.add(material, 'aoMapIntensity').min(0).max(10).step(0.0001);
-// gui.add(material, 'displacementScale').min(0).max(1).step(0.0001);
-// gui.add(material.normalScale, 'x').min(0).max(1).step(0.0001);
-// gui.add(material.normalScale, 'y').min(0).max(1).step(0.0001);
-
-const sphere = new Mesh(new SphereGeometry(0.5, 32, 32), material);
-// sphere.castShadow = true;
-// sphere.position.x = -1.5;
-// sphere.geometry.setAttribute(
-//   'uv2',
-//   new BufferAttribute(sphere.geometry.attributes.uv.array, 2),
-// );
-
-// const cube = new Mesh(new BoxGeometry(0.75, 0.75, 0.75), material);
-// plane.geometry.setAttribute(
-//   'uv2',
-//   new BufferAttribute(plane.geometry.attributes.uv.array, 2),
-// );
-
-// const torus = new Mesh(new TorusGeometry(0.3, 0.2, 32, 64), material);
-// torus.position.x = 1.5;
-// torus.geometry.setAttribute(
-//   'uv2',
-//   new BufferAttribute(torus.geometry.attributes.uv.array, 2),
-// );
-
-const plane = new Mesh(new PlaneGeometry(5, 5), material);
-plane.rotation.x = -Math.PI * 0.5;
-plane.position.y = -0.5;
-// plane.receiveShadow = true;
-
-const sphereShadow = new Mesh(
-  new PlaneGeometry(1.5, 1.5),
-  new MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    alphaMap: simpleShadow,
+// Walls
+const wallsHeight = 2.5;
+const wallsWidth = 4;
+const walls = new Mesh(
+  new BoxGeometry(wallsWidth, wallsHeight, wallsWidth),
+  new MeshStandardMaterial({
+    map: bricksColorTexture,
+    aoMap: bricksAmbientOcclusionTexture,
+    normalMap: bricksNormalTexture,
+    roughnessMap: bricksRoughnessTexture,
   }),
 );
-sphereShadow.rotation.x = -Math.PI * 0.5;
-sphereShadow.position.y = plane.position.y + 0.01;
-scene.add(sphereShadow);
+walls.geometry.setAttribute(
+  'uv2',
+  new Float32BufferAttribute(walls.geometry.attributes.uv.array, 2),
+);
+walls.position.y = wallsHeight * 0.5;
+house.add(walls);
 
-// scene.add(sphere, cube, torus, plane);
-scene.add(sphere, plane);
+// Roof
+const roofHeight = 1;
+const roofRadius = 3.5;
+const roof = new Mesh(
+  new ConeGeometry(roofRadius, roofHeight, 4),
+  new MeshStandardMaterial({color: 0xb35f45}),
+);
+roof.rotation.y = Math.PI * 0.25;
+roof.position.y = wallsHeight + roofHeight * 0.5;
+house.add(roof);
 
-// Debug
-// gui.add(mesh.position, 'y').min(-3).max(3).step(0.01).name('elevation');
-// gui.add(mesh, 'visible');
-// gui.add(material, 'wireframe');
-// gui.addColor(parameters, 'color').onChange(() => {
-//   material.color.set(parameters.color);
-// });
-// gui.add(parameters, 'spin');
+// Door
+const doorHeight = 2;
+const door = new Mesh(
+  new PlaneGeometry(doorHeight + 0.2, doorHeight + 0.2, 100, 100),
+  new MeshStandardMaterial({
+    map: doorColorTexture,
+    transparent: true,
+    alphaMap: doorAlphaTexture,
+    aoMap: doorAmbientOcclusionTexture,
+    displacementMap: doorHeightTexture,
+    displacementScale: 0.1,
+    normalMap: doorNormalTexture,
+    metalnessMap: doorMetalnessTexture,
+    roughnessMap: doorRoughnessTexture,
+  }),
+);
+door.geometry.setAttribute(
+  'uv2',
+  new Float32BufferAttribute(door.geometry.attributes.uv.array, 2),
+);
+door.position.y = doorHeight * 0.5;
+door.position.z = wallsWidth * 0.5 + 0.01;
+house.add(door);
+
+// Bushes
+const bushGeometry = new SphereGeometry(1, 16, 16);
+const bushMaterial = new MeshStandardMaterial({color: 0x89c854});
+
+const bush1 = new Mesh(bushGeometry, bushMaterial);
+bush1.scale.set(0.5, 0.5, 0.5);
+bush1.position.set(0.8, 0.2, 2.2);
+
+const bush2 = new Mesh(bushGeometry, bushMaterial);
+bush2.scale.set(0.25, 0.25, 0.25);
+bush2.position.set(1.4, 0.1, 2.1);
+
+const bush3 = new Mesh(bushGeometry, bushMaterial);
+bush3.scale.set(0.4, 0.4, 0.4);
+bush3.position.set(-0.8, 0.1, 2.2);
+
+const bush4 = new Mesh(bushGeometry, bushMaterial);
+bush4.scale.set(0.15, 0.15, 0.15);
+bush4.position.set(-1, 0.05, 2.6);
+
+house.add(bush1, bush2, bush3, bush4);
+
+// Graves
+const graves = new Group();
+scene.add(graves);
+
+const graveHeight = 0.8;
+const graveGeometry = new BoxGeometry(0.6, graveHeight, 0.2);
+const graveMaterial = new MeshStandardMaterial({color: 0xb2b6b1});
+
+for (let i = 0; i < 50; i++) {
+  const angle = Math.random() * Math.PI * 2;
+  const radius = 3 + Math.random() * 6;
+  const x = Math.sin(angle) * radius;
+  const z = Math.cos(angle) * radius;
+
+  const grave = new Mesh(graveGeometry, graveMaterial);
+  grave.position.set(x, graveHeight * 0.5 - 0.1, z);
+  grave.rotation.y = (Math.random() - 0.5) * 0.4;
+  grave.rotation.z = (Math.random() - 0.5) * 0.4;
+  grave.castShadow = true;
+  graves.add(grave);
+}
+
+// Floor
+const floor = new Mesh(
+  new PlaneGeometry(20, 20),
+  new MeshStandardMaterial({
+    map: grassColorTexture,
+    aoMap: grassAmbientOcclusionTexture,
+    normalMap: grassNormalTexture,
+    roughnessMap: grassRoughnessTexture,
+  }),
+);
+floor.geometry.setAttribute(
+  'uv2',
+  new Float32BufferAttribute(floor.geometry.attributes.uv.array, 2),
+);
+floor.rotation.x = -Math.PI * 0.5;
+floor.position.y = 0;
+scene.add(floor);
 
 // Camera
 const camera = new PerspectiveCamera(75, aspectRatio, 0.1, 100);
-camera.position.z = 3;
-// camera.lookAt(mesh.position);
+camera.position.x = 4;
+camera.position.y = 2;
+camera.position.z = 5;
 scene.add(camera);
 
 // Controls
@@ -399,8 +287,41 @@ const renderer = new WebGLRenderer({
 });
 renderer.setSize(SIZES.width, SIZES.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = false;
+renderer.setClearColor(fogColor);
+
+// Shadows
+renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFSoftShadowMap;
+
+moonLight.castShadow = true;
+doorLight.castShadow = true;
+ghost1.castShadow = true;
+ghost2.castShadow = true;
+ghost3.castShadow = true;
+
+walls.castShadow = true;
+bush1.castShadow = true;
+bush2.castShadow = true;
+bush3.castShadow = true;
+bush4.castShadow = true;
+
+floor.receiveShadow = true;
+
+doorLight.shadow.mapSize.width = 256;
+doorLight.shadow.mapSize.height = 256;
+doorLight.shadow.camera.far = 7;
+
+ghost1.shadow.mapSize.width = 256;
+ghost1.shadow.mapSize.height = 256;
+ghost1.shadow.camera.far = 7;
+
+ghost2.shadow.mapSize.width = 256;
+ghost2.shadow.mapSize.height = 256;
+ghost2.shadow.camera.far = 7;
+
+ghost3.shadow.mapSize.width = 256;
+ghost3.shadow.mapSize.height = 256;
+ghost3.shadow.camera.far = 7;
 
 // Clock
 const clock = new Clock();
@@ -410,28 +331,22 @@ const tick = () => {
   // Clock
   const elapsedTime = clock.getElapsedTime();
 
-  // Update objects
-  sphere.position.x = Math.cos(elapsedTime);
-  sphere.position.z = Math.sin(elapsedTime);
-  sphere.position.y = Math.abs(Math.sin(elapsedTime * 3));
+  // Ghosts
+  const ghost1Angle = elapsedTime * 0.5;
+  ghost1.position.x = Math.cos(ghost1Angle) * 4;
+  ghost1.position.z = Math.sin(ghost1Angle) * 4;
+  ghost1.position.y = Math.sin(elapsedTime * 3);
 
-  sphereShadow.position.x = Math.cos(elapsedTime);
-  sphereShadow.position.z = Math.sin(elapsedTime);
-  sphereShadow.material.opacity = (1 - sphere.position.y) * 0.3;
+  const ghost2Angle = -elapsedTime * 0.32;
+  ghost2.position.x = Math.cos(ghost2Angle) * 5;
+  ghost2.position.z = Math.sin(ghost2Angle) * 5;
+  ghost2.position.y = Math.sin(elapsedTime * 4) + Math.sin(elapsedTime * 2.5);
 
-  // sphere.rotation.y = 0.1 * elapsedTime;
-  // cube.rotation.y = 0.1 * elapsedTime;
-  // torus.rotation.y = 0.1 * elapsedTime;
-
-  // sphere.rotation.x = 0.15 * elapsedTime;
-  // cube.rotation.x = 0.15 * elapsedTime;
-  // torus.rotation.x = 0.15 * elapsedTime;
-
-  // Update camera
-  // camera.position.x = Math.sin(cursor.x * Math.PI * 2) * 3;
-  // camera.position.z = Math.cos(cursor.x * Math.PI * 2) * 3;
-  // camera.position.y = cursor.y * 5;
-  // camera.lookAt(mesh.position);
+  const ghost3Angle = -elapsedTime * 0.18;
+  ghost3.position.x =
+    Math.cos(ghost3Angle) * (7 + Math.sin(elapsedTime * 0.32));
+  ghost3.position.z = Math.sin(ghost3Angle) * (7 + Math.sin(elapsedTime * 0.5));
+  ghost3.position.y = Math.sin(elapsedTime * 4) + Math.sin(elapsedTime * 2.5);
 
   // Update controls
   controls.update();
