@@ -16,7 +16,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
 import { IParameters } from './types';
 import './style.css';
-import { random16 } from 'three/src/math/MathUtils';
 
 // Sizes
 const SIZES = {
@@ -131,12 +130,9 @@ const generateGalaxy = ({
 
     positions[i3] = Math.cos(branchAngle + spinAngle) * radiusGalaxy + randomX;
     positions[i3 + 1] = randomY;
-    positions[i3 + 2] =
-      Math.sin(branchAngle + spinAngle) * radiusGalaxy + randomZ;
+    positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radiusGalaxy + randomZ;
 
-    const mixedColor = colorInside
-      .clone()
-      .lerp(colorOutside, radiusGalaxy / radius);
+    const mixedColor = colorInside.clone().lerp(colorOutside, radiusGalaxy / radius);
 
     colors[i3] = mixedColor.r;
     colors[i3 + 1] = mixedColor.g;
@@ -202,12 +198,8 @@ gui
   .max(10)
   .step(0.001)
   .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .addColor(parameters, 'insideColor')
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .addColor(parameters, 'outsideColor')
-  .onFinishChange(() => generateGalaxy(parameters));
+gui.addColor(parameters, 'insideColor').onFinishChange(() => generateGalaxy(parameters));
+gui.addColor(parameters, 'outsideColor').onFinishChange(() => generateGalaxy(parameters));
 
 // Camera
 const camera = new PerspectiveCamera(75, aspectRatio, 0.1, 100);
