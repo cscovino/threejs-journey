@@ -2,19 +2,15 @@ import {
   PerspectiveCamera,
   WebGLRenderer,
   Scene,
-  // TextureLoader,
-  // LoadingManager,
-  // Clock,
-  BufferGeometry,
-  BufferAttribute,
-  PointsMaterial,
-  AdditiveBlending,
-  Points,
-  Color,
+  Mesh,
+  SphereGeometry,
+  MeshBasicMaterial,
+  Raycaster,
+  Clock,
+  Vector2,
+  Intersection,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import * as dat from 'dat.gui';
-import { IParameters } from './types';
 import './style.css';
 
 // Sizes
@@ -46,14 +42,17 @@ window.addEventListener('dblclick', () => {
 });
 
 // Cursor
-const cursor = { x: 0, y: 0 };
+const cursor = new Vector2();
 window.addEventListener('mousemove', (event) => {
-  cursor.x = event.clientX / SIZES.width - 0.5;
-  cursor.y = -(event.clientY / SIZES.height - 0.5);
+  cursor.x = (event.clientX / SIZES.width) * 2 - 1;
+  cursor.y = -(event.clientY / SIZES.height) * 2 + 1;
 });
 
-// Debug
-const gui = new dat.GUI();
+window.addEventListener('click', () => {
+  if (currentIntersect) {
+    if (currentIntersect.object === obj1) console.log('click obj1');
+  }
+});
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement;
@@ -61,150 +60,22 @@ const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement;
 // Scene
 const scene = new Scene();
 
-// Textures
-// const loadingManager = new LoadingManager();
-// const textureLoader = new TextureLoader(loadingManager);
+// Objects
+const obj1 = new Mesh(new SphereGeometry(0.5, 16, 16), new MeshBasicMaterial({ color: 0xff0000 }));
+obj1.position.x = -2;
 
-// Galaxy
-const parameters: IParameters = {
-  count: 10000,
-  size: 0.01,
-  radius: 5,
-  branches: 3,
-  spin: 1,
-  randomness: 0.2,
-  randomnessPower: 3,
-  insideColor: '#ff6030',
-  outsideColor: '#1b3984',
-};
+const obj2 = new Mesh(new SphereGeometry(0.5, 16, 16), new MeshBasicMaterial({ color: 0xff0000 }));
 
-let geometry: BufferGeometry | null = null;
-let material: PointsMaterial | null = null;
-let points: Points | null = null;
+const obj3 = new Mesh(new SphereGeometry(0.5, 16, 16), new MeshBasicMaterial({ color: 0xff0000 }));
+obj3.position.x = 2;
 
-const generateGalaxy = ({
-  count,
-  size,
-  radius,
-  branches,
-  spin,
-  randomness,
-  randomnessPower,
-  insideColor,
-  outsideColor,
-}: IParameters) => {
-  if (points !== null) {
-    geometry?.dispose();
-    material?.dispose();
-    scene.remove(points);
-  }
+scene.add(obj1, obj2, obj3);
 
-  geometry = new BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-
-  const colorInside = new Color(insideColor);
-  const colorOutside = new Color(outsideColor);
-
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3;
-    const radiusGalaxy = Math.random() * radius;
-    const spinAngle = radiusGalaxy * spin;
-    const branchAngle = ((i % branches) / branches) * Math.PI * 2;
-
-    const randomX =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-    const randomY =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-    const randomZ =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-
-    positions[i3] = Math.cos(branchAngle + spinAngle) * radiusGalaxy + randomX;
-    positions[i3 + 1] = randomY;
-    positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radiusGalaxy + randomZ;
-
-    const mixedColor = colorInside.clone().lerp(colorOutside, radiusGalaxy / radius);
-
-    colors[i3] = mixedColor.r;
-    colors[i3 + 1] = mixedColor.g;
-    colors[i3 + 2] = mixedColor.b;
-  }
-
-  geometry.setAttribute('position', new BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new BufferAttribute(colors, 3));
-
-  material = new PointsMaterial({
-    size,
-    sizeAttenuation: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    vertexColors: true,
-  });
-
-  points = new Points(geometry, material);
-  scene.add(points);
-};
-
-generateGalaxy(parameters);
-
-gui
-  .add(parameters, 'count')
-  .min(100)
-  .max(1000000)
-  .step(100)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'size')
-  .min(0.001)
-  .max(0.1)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'radius')
-  .min(0.01)
-  .max(20)
-  .step(0.01)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'branches')
-  .min(2)
-  .max(20)
-  .step(1)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'spin')
-  .min(-5)
-  .max(5)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'randomness')
-  .min(0)
-  .max(2)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'randomnessPower')
-  .min(1)
-  .max(10)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui.addColor(parameters, 'insideColor').onFinishChange(() => generateGalaxy(parameters));
-gui.addColor(parameters, 'outsideColor').onFinishChange(() => generateGalaxy(parameters));
+// Raycaster
+const raycaster = new Raycaster();
 
 // Camera
 const camera = new PerspectiveCamera(75, aspectRatio, 0.1, 100);
-camera.position.x = 3;
-camera.position.y = 3;
 camera.position.z = 3;
 scene.add(camera);
 
@@ -220,14 +91,45 @@ renderer.setSize(SIZES.width, SIZES.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 // Clock
-// const clock = new Clock();
+const clock = new Clock();
+
+let currentIntersect: Intersection | null = null;
 
 // Animations
 const tick = () => {
   // Clock
-  // const elapsedTime = clock.getElapsedTime();
+  const elapsedTime = clock.getElapsedTime();
 
-  // Update particles
+  // Update objects
+  obj1.position.y = Math.sin(elapsedTime * 0.3) * 1.5;
+  obj2.position.y = Math.sin(elapsedTime * 0.8) * 1.5;
+  obj3.position.y = Math.sin(elapsedTime * 1.4) * 1.5;
+
+  // Cast a ray
+  raycaster.setFromCamera(cursor, camera);
+
+  const objectsToTest = [obj1, obj2, obj3];
+  const intersects = raycaster.intersectObjects(objectsToTest);
+
+  objectsToTest.forEach((object) => {
+    object.material.color.set(0xff0000);
+  });
+
+  intersects.forEach((intersect) => {
+    (intersect.object as Mesh<SphereGeometry, MeshBasicMaterial>).material.color.set(0x0000ff);
+  });
+
+  if (intersects.length) {
+    if (currentIntersect == null) {
+      console.log('enter');
+    }
+    currentIntersect = intersects[0];
+  } else {
+    if (currentIntersect) {
+      console.log('leave');
+    }
+    currentIntersect = null;
+  }
 
   // Update controls
   controls.update();
