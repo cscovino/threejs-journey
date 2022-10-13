@@ -118,7 +118,7 @@ const environmentMapTexture = cubeTextureLoader.load([
 
 // Sounds
 const hitSound = new Audio('/sounds/hit.mp3');
-const playHitSound = (collision: CANNON.ICollisionEvent) => {
+const playHitSound = (collision: any) => {
   const impactStrength = collision.contact.getImpactVelocityAlongNormal();
   if (impactStrength > 1.5) {
     hitSound.volume = Math.random();
