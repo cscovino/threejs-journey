@@ -2,19 +2,19 @@ import {
   PerspectiveCamera,
   WebGLRenderer,
   Scene,
-  // TextureLoader,
-  // LoadingManager,
-  // Clock,
-  BufferGeometry,
-  BufferAttribute,
-  PointsMaterial,
-  AdditiveBlending,
-  Points,
+  TextureLoader,
+  PlaneGeometry,
+  Mesh,
+  RawShaderMaterial,
+  // BufferAttribute,
+  Vector2,
+  Clock,
   Color,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
-import { IParameters } from './types';
+import testVertexShader from './shaders/test/vertex.glsl';
+import testFragmentShader from './shaders/test/fragment.glsl';
 import './style.css';
 
 // Sizes
@@ -45,13 +45,6 @@ window.addEventListener('dblclick', () => {
   }
 });
 
-// Cursor
-const cursor = { x: 0, y: 0 };
-window.addEventListener('mousemove', (event) => {
-  cursor.x = event.clientX / SIZES.width - 0.5;
-  cursor.y = -(event.clientY / SIZES.height - 0.5);
-});
-
 // Debug
 const gui = new dat.GUI();
 
@@ -62,150 +55,42 @@ const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement;
 const scene = new Scene();
 
 // Textures
-// const loadingManager = new LoadingManager();
-// const textureLoader = new TextureLoader(loadingManager);
+const textureLoader = new TextureLoader();
+const flagTexture = textureLoader.load('/textures/flag-french.jpg');
 
-// Galaxy
-const parameters: IParameters = {
-  count: 10000,
-  size: 0.01,
-  radius: 5,
-  branches: 3,
-  spin: 1,
-  randomness: 0.2,
-  randomnessPower: 3,
-  insideColor: '#ff6030',
-  outsideColor: '#1b3984',
-};
+// Mesh
+const geometry = new PlaneGeometry(1, 1, 32, 32);
 
-let geometry: BufferGeometry | null = null;
-let material: PointsMaterial | null = null;
-let points: Points | null = null;
+// const count = geometry.attributes.position.count;
+// const randoms = new Float32Array(count);
 
-const generateGalaxy = ({
-  count,
-  size,
-  radius,
-  branches,
-  spin,
-  randomness,
-  randomnessPower,
-  insideColor,
-  outsideColor,
-}: IParameters) => {
-  if (points !== null) {
-    geometry?.dispose();
-    material?.dispose();
-    scene.remove(points);
-  }
+// for (let i = 0; i < count; i++) {
+//   randoms[i] = Math.random();
+// }
 
-  geometry = new BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
+// geometry.setAttribute('aRandom', new BufferAttribute(randoms, 1));
 
-  const colorInside = new Color(insideColor);
-  const colorOutside = new Color(outsideColor);
+const material = new RawShaderMaterial({
+  vertexShader: testVertexShader,
+  fragmentShader: testFragmentShader,
+  uniforms: {
+    uFrequency: { value: new Vector2(10, 5) },
+    uTime: { value: 0 },
+    uColor: { value: new Color('orange') },
+    uTexture: { value: flagTexture },
+  },
+});
 
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3;
-    const radiusGalaxy = Math.random() * radius;
-    const spinAngle = radiusGalaxy * spin;
-    const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+gui.add(material.uniforms.uFrequency.value, 'x').min(0).max(20).step(0.01).name('frequencyX');
+gui.add(material.uniforms.uFrequency.value, 'y').min(0).max(20).step(0.01).name('frequencyY');
 
-    const randomX =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-    const randomY =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-    const randomZ =
-      Math.pow(Math.random(), randomnessPower) *
-      (Math.random() < 0.5 ? 1 : -1) *
-      randomness *
-      radiusGalaxy;
-
-    positions[i3] = Math.cos(branchAngle + spinAngle) * radiusGalaxy + randomX;
-    positions[i3 + 1] = randomY;
-    positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radiusGalaxy + randomZ;
-
-    const mixedColor = colorInside.clone().lerp(colorOutside, radiusGalaxy / radius);
-
-    colors[i3] = mixedColor.r;
-    colors[i3 + 1] = mixedColor.g;
-    colors[i3 + 2] = mixedColor.b;
-  }
-
-  geometry.setAttribute('position', new BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new BufferAttribute(colors, 3));
-
-  material = new PointsMaterial({
-    size,
-    sizeAttenuation: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    vertexColors: true,
-  });
-
-  points = new Points(geometry, material);
-  scene.add(points);
-};
-
-generateGalaxy(parameters);
-
-gui
-  .add(parameters, 'count')
-  .min(100)
-  .max(1000000)
-  .step(100)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'size')
-  .min(0.001)
-  .max(0.1)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'radius')
-  .min(0.01)
-  .max(20)
-  .step(0.01)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'branches')
-  .min(2)
-  .max(20)
-  .step(1)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'spin')
-  .min(-5)
-  .max(5)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'randomness')
-  .min(0)
-  .max(2)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'randomnessPower')
-  .min(1)
-  .max(10)
-  .step(0.001)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui.addColor(parameters, 'insideColor').onFinishChange(() => generateGalaxy(parameters));
-gui.addColor(parameters, 'outsideColor').onFinishChange(() => generateGalaxy(parameters));
+const mesh = new Mesh(geometry, material);
+mesh.scale.y = 2 / 3;
+scene.add(mesh);
 
 // Camera
 const camera = new PerspectiveCamera(75, aspectRatio, 0.1, 100);
-camera.position.x = 3;
-camera.position.y = 3;
-camera.position.z = 3;
+camera.position.set(0.25, -0.25, 1);
 scene.add(camera);
 
 // Controls
@@ -220,14 +105,15 @@ renderer.setSize(SIZES.width, SIZES.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 // Clock
-// const clock = new Clock();
+const clock = new Clock();
 
 // Animations
 const tick = () => {
   // Clock
-  // const elapsedTime = clock.getElapsedTime();
+  const elapsedTime = clock.getElapsedTime();
 
-  // Update particles
+  // Update material
+  material.uniforms.uTime.value = elapsedTime;
 
   // Update controls
   controls.update();
