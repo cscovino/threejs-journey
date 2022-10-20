@@ -2,18 +2,18 @@ import {
   PerspectiveCamera,
   WebGLRenderer,
   Scene,
-  // TextureLoader,
-  // LoadingManager,
-  // Clock,
   BufferGeometry,
   BufferAttribute,
-  PointsMaterial,
   AdditiveBlending,
   Points,
   Color,
+  Clock,
+  ShaderMaterial,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import * as dat from 'dat.gui';
+import galaxyVertexShader from './shaders/galaxy/vertex.glsl';
+import galaxyFragmentShader from './shaders/galaxy/fragment.glsl';
 import { IParameters } from './types';
 import './style.css';
 
@@ -45,13 +45,6 @@ window.addEventListener('dblclick', () => {
   }
 });
 
-// Cursor
-const cursor = { x: 0, y: 0 };
-window.addEventListener('mousemove', (event) => {
-  cursor.x = event.clientX / SIZES.width - 0.5;
-  cursor.y = -(event.clientY / SIZES.height - 0.5);
-});
-
 // Debug
 const gui = new dat.GUI();
 
@@ -61,33 +54,25 @@ const canvas = document.querySelector('canvas.webgl') as HTMLCanvasElement;
 // Scene
 const scene = new Scene();
 
-// Textures
-// const loadingManager = new LoadingManager();
-// const textureLoader = new TextureLoader(loadingManager);
-
 // Galaxy
 const parameters: IParameters = {
-  count: 10000,
-  size: 0.01,
+  count: 200000,
   radius: 5,
   branches: 3,
-  spin: 1,
-  randomness: 0.2,
+  randomness: 0.5,
   randomnessPower: 3,
   insideColor: '#ff6030',
   outsideColor: '#1b3984',
 };
 
 let geometry: BufferGeometry | null = null;
-let material: PointsMaterial | null = null;
+let material: ShaderMaterial | null = null;
 let points: Points | null = null;
 
 const generateGalaxy = ({
   count,
-  size,
   radius,
   branches,
-  spin,
   randomness,
   randomnessPower,
   insideColor,
@@ -100,17 +85,25 @@ const generateGalaxy = ({
   }
 
   geometry = new BufferGeometry();
+
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
+  const scales = new Float32Array(count * 1);
+  const randomnessPosition = new Float32Array(count * 3);
 
   const colorInside = new Color(insideColor);
   const colorOutside = new Color(outsideColor);
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3;
+
+    // Position
     const radiusGalaxy = Math.random() * radius;
-    const spinAngle = radiusGalaxy * spin;
     const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+
+    positions[i3] = Math.cos(branchAngle) * radiusGalaxy;
+    positions[i3 + 1] = 0;
+    positions[i3 + 2] = Math.sin(branchAngle) * radiusGalaxy;
 
     const randomX =
       Math.pow(Math.random(), randomnessPower) *
@@ -128,45 +121,47 @@ const generateGalaxy = ({
       randomness *
       radiusGalaxy;
 
-    positions[i3] = Math.cos(branchAngle + spinAngle) * radiusGalaxy + randomX;
-    positions[i3 + 1] = randomY;
-    positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radiusGalaxy + randomZ;
+    randomnessPosition[i3] = randomX;
+    randomnessPosition[i3 + 1] = randomY;
+    randomnessPosition[i3 + 2] = randomZ;
 
+    // Color
     const mixedColor = colorInside.clone().lerp(colorOutside, radiusGalaxy / radius);
 
     colors[i3] = mixedColor.r;
     colors[i3 + 1] = mixedColor.g;
     colors[i3 + 2] = mixedColor.b;
+
+    // Scale
+    scales[i] = Math.random();
   }
 
   geometry.setAttribute('position', new BufferAttribute(positions, 3));
   geometry.setAttribute('color', new BufferAttribute(colors, 3));
+  geometry.setAttribute('aScale', new BufferAttribute(scales, 1));
+  geometry.setAttribute('aRandomness', new BufferAttribute(randomnessPosition, 3));
 
-  material = new PointsMaterial({
-    size,
-    sizeAttenuation: true,
+  material = new ShaderMaterial({
     depthWrite: false,
     blending: AdditiveBlending,
     vertexColors: true,
+    vertexShader: galaxyVertexShader,
+    fragmentShader: galaxyFragmentShader,
+    uniforms: {
+      uTime: { value: 0.0 },
+      uSize: { value: 30.0 * renderer.getPixelRatio() },
+    },
   });
 
   points = new Points(geometry, material);
   scene.add(points);
 };
 
-generateGalaxy(parameters);
-
 gui
   .add(parameters, 'count')
   .min(100)
   .max(1000000)
   .step(100)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'size')
-  .min(0.001)
-  .max(0.1)
-  .step(0.001)
   .onFinishChange(() => generateGalaxy(parameters));
 gui
   .add(parameters, 'radius')
@@ -179,12 +174,6 @@ gui
   .min(2)
   .max(20)
   .step(1)
-  .onFinishChange(() => generateGalaxy(parameters));
-gui
-  .add(parameters, 'spin')
-  .min(-5)
-  .max(5)
-  .step(0.001)
   .onFinishChange(() => generateGalaxy(parameters));
 gui
   .add(parameters, 'randomness')
@@ -219,15 +208,18 @@ const renderer = new WebGLRenderer({
 renderer.setSize(SIZES.width, SIZES.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
+generateGalaxy(parameters);
+
 // Clock
-// const clock = new Clock();
+const clock = new Clock();
 
 // Animations
 const tick = () => {
   // Clock
-  // const elapsedTime = clock.getElapsedTime();
+  const elapsedTime = clock.getElapsedTime();
 
-  // Update particles
+  // Update material
+  if (material) material.uniforms.uTime.value = elapsedTime;
 
   // Update controls
   controls.update();
