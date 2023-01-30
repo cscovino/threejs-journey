@@ -4,30 +4,24 @@ import {
   Scene,
   Clock,
   PCFShadowMap,
-  sRGBEncoding,
-  ACESFilmicToneMapping,
   TextureLoader,
-  CubeTextureLoader,
   Mesh,
   MeshStandardMaterial,
   DirectionalLight,
-  WebGLRenderTarget,
-  Vector2,
-  Vector3,
+  BoxGeometry,
+  SphereGeometry,
+  PlaneGeometry,
+  TorusKnotGeometry,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
-import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass';
-import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
-import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
-import { RGBShiftShader } from 'three/examples/jsm/shaders/RGBShiftShader';
-import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
+import Stats from 'stats.js';
 import * as dat from 'dat.gui';
 import './style.css';
+
+// Stats
+const stats = new Stats();
+stats.showPanel(0);
+document.body.appendChild(stats.dom);
 
 // Sizes
 const SIZES = {
@@ -48,10 +42,6 @@ window.addEventListener('resize', () => {
   // Update renderer
   renderer.setSize(SIZES.width, SIZES.height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-  // Update effectComposer
-  effectComposer.setSize(SIZES.width, SIZES.height);
-  effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 });
 
 window.addEventListener('dblclick', () => {
@@ -73,47 +63,34 @@ const scene = new Scene();
 
 // Loaders
 const textureLoader = new TextureLoader();
-const gltfLoader = new GLTFLoader();
-const cubeTextureLoader = new CubeTextureLoader();
-
-// Update materials
-const updateAllMaterials = () => {
-  scene.traverse((child) => {
-    if (child instanceof Mesh && child.material instanceof MeshStandardMaterial) {
-      child.material.envMapIntensity = 1;
-      child.material.needsUpdate = true;
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-};
-
-// Environment map
-const environmentMap = cubeTextureLoader.load([
-  '/textures/environmentMaps/0/px.jpg',
-  '/textures/environmentMaps/0/nx.jpg',
-  '/textures/environmentMaps/0/py.jpg',
-  '/textures/environmentMaps/0/ny.jpg',
-  '/textures/environmentMaps/0/pz.jpg',
-  '/textures/environmentMaps/0/nz.jpg',
-]);
-environmentMap.encoding = sRGBEncoding;
-
-scene.background = environmentMap;
-scene.environment = environmentMap;
 
 // Textures
+const displacementTexture = textureLoader.load('/textures/displacementMap.png');
 
-// Material
+// Test Meshes
+const cube = new Mesh(new BoxGeometry(2, 2, 2), new MeshStandardMaterial());
+cube.castShadow = true;
+cube.receiveShadow = true;
+cube.position.set(-5, 0, 0);
+scene.add(cube);
 
-// Models
-gltfLoader.load('/models/DamagedHelmet/glTF/DamagedHelmet.gltf', (gltf) => {
-  gltf.scene.scale.set(2, 2, 2);
-  gltf.scene.rotation.y = Math.PI * 0.5;
-  scene.add(gltf.scene);
+const torusKnot = new Mesh(new TorusKnotGeometry(1, 0.4, 128, 32), new MeshStandardMaterial());
+torusKnot.castShadow = true;
+torusKnot.receiveShadow = true;
+scene.add(torusKnot);
 
-  updateAllMaterials();
-});
+const sphere = new Mesh(new SphereGeometry(1, 32, 32), new MeshStandardMaterial());
+sphere.castShadow = true;
+sphere.receiveShadow = true;
+sphere.position.set(5, 0, 0);
+scene.add(sphere);
+
+const floor = new Mesh(new PlaneGeometry(10, 10), new MeshStandardMaterial());
+floor.castShadow = true;
+floor.receiveShadow = true;
+floor.position.set(0, -2, 0);
+floor.rotation.x = -Math.PI * 0.5;
+scene.add(floor);
 
 // Lights
 const directionalLight = new DirectionalLight('#ffffff', 3);
@@ -121,14 +98,14 @@ directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.set(1024, 1024);
 directionalLight.shadow.camera.far = 15;
 directionalLight.shadow.normalBias = 0.05;
-directionalLight.position.set(0.25, 2, -2.25);
+directionalLight.position.set(0.25, 3, 2.25);
 scene.add(directionalLight);
 
 // Camera
 const camera = new PerspectiveCamera(75, aspectRatio, 0.1, 100);
-camera.position.x = 4;
-camera.position.y = 1;
-camera.position.z = -4;
+camera.position.x = 2;
+camera.position.y = 2;
+camera.position.z = 6;
 scene.add(camera);
 
 // Controls
@@ -138,161 +115,206 @@ controls.enableDamping = true;
 // Renderer
 const renderer = new WebGLRenderer({
   canvas,
+  powerPreference: 'high-performance',
   antialias: true,
 });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFShadowMap;
-renderer.physicallyCorrectLights = true;
-renderer.outputEncoding = sRGBEncoding;
-renderer.toneMapping = ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1;
 renderer.setSize(SIZES.width, SIZES.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-// Post processing
-
-const renderTarget = new WebGLRenderTarget(800, 600, {
-  samples: renderer.getPixelRatio() === 1 ? 2 : 0,
-});
-
-const effectComposer = new EffectComposer(renderer, renderTarget);
-effectComposer.setSize(SIZES.width, SIZES.height);
-effectComposer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-const renderPass = new RenderPass(scene, camera);
-effectComposer.addPass(renderPass);
-
-// Dot Screen Pass
-const dotScreenPass = new DotScreenPass();
-dotScreenPass.enabled = false;
-effectComposer.addPass(dotScreenPass);
-
-// Glitch Pass
-const glitchPass = new GlitchPass();
-glitchPass.goWild = false;
-glitchPass.enabled = false;
-effectComposer.addPass(glitchPass);
-
-// RGB Shift Pass
-const rgbShiftPass = new ShaderPass(RGBShiftShader);
-rgbShiftPass.enabled = false;
-effectComposer.addPass(rgbShiftPass);
-
-// Unreal BLoom Pass
-const unrealBloomPass = new UnrealBloomPass(new Vector2(SIZES.width, SIZES.height), 0.3, 1, 0.6);
-unrealBloomPass.enabled = false;
-effectComposer.addPass(unrealBloomPass);
-
-gui.add(unrealBloomPass, 'enabled');
-gui.add(unrealBloomPass, 'strength').min(0).max(2).step(0.001);
-gui.add(unrealBloomPass, 'radius').min(0).max(2).step(0.001);
-gui.add(unrealBloomPass, 'threshold').min(0).max(1).step(0.001);
-
-// Tint Pass
-const TintShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uTint: { value: null },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-
-    void main() {
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-
-      vUv = uv;
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;  
-    uniform vec3 uTint;
-    varying vec2 vUv;
-
-    void main() {
-      vec4 color = texture2D(tDiffuse, vUv);
-      color.rgb += uTint;
-      gl_FragColor = color;
-    }
-  `,
-};
-const tintPass = new ShaderPass(TintShader);
-tintPass.material.uniforms.uTint.value = new Vector3();
-effectComposer.addPass(tintPass);
-
-gui.add(tintPass.material.uniforms.uTint.value, 'x').min(-1).max(1).step(0.001).name('red');
-gui.add(tintPass.material.uniforms.uTint.value, 'y').min(-1).max(1).step(0.001).name('green');
-gui.add(tintPass.material.uniforms.uTint.value, 'z').min(-1).max(1).step(0.001).name('blue');
-
-// Displacement Pass
-const DisplacementShader = {
-  uniforms: {
-    tDiffuse: { value: null },
-    uNormalMap: { value: null },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-
-    void main() {
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-
-      vUv = uv;
-    }
-  `,
-  fragmentShader: `
-    uniform sampler2D tDiffuse;  
-    uniform sampler2D uNormalMap;
-
-    varying vec2 vUv;
-
-    void main() {
-      vec3 normalColor = texture2D(uNormalMap, vUv).xyz * 2.0 - 1.0;
-
-      vec2 newUv = vUv + normalColor.xy * 0.2;
-      vec4 color = texture2D(tDiffuse, newUv);
-
-      vec3 lightDirection = normalize(vec3(-1.0, 1.0, 0.0));
-      float lightness = clamp(dot(normalColor, lightDirection), 0.0, 1.0);
-      color.rgb += lightness * 2.0;
-
-      gl_FragColor = color;
-    }
-  `,
-};
-const displacementPass = new ShaderPass(DisplacementShader);
-displacementPass.material.uniforms.uNormalMap.value = textureLoader.load(
-  '/textures/interfaceNormalMap.png',
-);
-effectComposer.addPass(displacementPass);
-
-// Gamma Correction Pass
-const gammaCorrectionPass = new ShaderPass(GammaCorrectionShader);
-gammaCorrectionPass.enabled = true;
-effectComposer.addPass(gammaCorrectionPass);
-
-// SMAA Pass
-if (renderer.getPixelRatio() === 1 && !renderer.capabilities.isWebGL2) {
-  const smaaPass = new SMAAPass(SIZES.width, SIZES.height);
-  effectComposer.addPass(smaaPass);
-}
 
 // Clock
 const clock = new Clock();
 
 // Animations
 const tick = () => {
+  stats.begin();
+
   // Clock
   const elapsedTime = clock.getElapsedTime();
 
   // Update material
+  torusKnot.rotation.y = elapsedTime * 0.1;
 
   // Update controls
   controls.update();
 
   // Render
-  // renderer.render(scene, camera);
-  effectComposer.render();
+  renderer.render(scene, camera);
 
   window.requestAnimationFrame(tick);
+
+  stats.end();
 };
 
 tick();
+
+//Tips
+
+// // Tip 4
+// console.log(renderer.info)
+
+// // Tip 6
+// scene.remove(cube)
+// cube.geometry.dispose()
+// cube.material.dispose()
+
+// // Tip 10
+// directionalLight.shadow.camera.top = 3
+// directionalLight.shadow.camera.right = 6
+// directionalLight.shadow.camera.left = - 6
+// directionalLight.shadow.camera.bottom = - 3
+// directionalLight.shadow.camera.far = 10
+// directionalLight.shadow.mapSize.set(1024, 1024)
+
+// const cameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera)
+// scene.add(cameraHelper)
+
+// // Tip 11
+// cube.castShadow = true
+// cube.receiveShadow = false
+
+// torusKnot.castShadow = true
+// torusKnot.receiveShadow = false
+
+// sphere.castShadow = true
+// sphere.receiveShadow = false
+
+// floor.castShadow = false
+// floor.receiveShadow = true
+
+// // Tip 12
+// renderer.shadowMap.autoUpdate = false
+// renderer.shadowMap.needsUpdate = true
+
+// // Tip 18
+// for(let i = 0; i < 50; i++)
+// {
+//     const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+
+//     const material = new THREE.MeshNormalMaterial()
+
+//     const mesh = new THREE.Mesh(geometry, material)
+//     mesh.position.x = (Math.random() - 0.5) * 10
+//     mesh.position.y = (Math.random() - 0.5) * 10
+//     mesh.position.z = (Math.random() - 0.5) * 10
+//     mesh.rotation.x = (Math.random() - 0.5) * Math.PI * 2
+//     mesh.rotation.y = (Math.random() - 0.5) * Math.PI * 2
+
+//     scene.add(mesh)
+// }
+
+// // Tip 19
+// for(let i = 0; i < 50; i++)
+// {
+//     const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+
+//     const material = new THREE.MeshNormalMaterial()
+
+//     const mesh = new THREE.Mesh(geometry, material)
+//     mesh.position.x = (Math.random() - 0.5) * 10
+//     mesh.position.y = (Math.random() - 0.5) * 10
+//     mesh.position.z = (Math.random() - 0.5) * 10
+//     mesh.rotation.x = (Math.random() - 0.5) * Math.PI * 2
+//     mesh.rotation.y = (Math.random() - 0.5) * Math.PI * 2
+
+//     scene.add(mesh)
+// }
+
+// // Tip 20
+// const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+
+// for(let i = 0; i < 50; i++)
+// {
+//     const material = new THREE.MeshNormalMaterial()
+
+//     const mesh = new THREE.Mesh(geometry, material)
+//     mesh.position.x = (Math.random() - 0.5) * 10
+//     mesh.position.y = (Math.random() - 0.5) * 10
+//     mesh.position.z = (Math.random() - 0.5) * 10
+//     mesh.rotation.x = (Math.random() - 0.5) * Math.PI * 2
+//     mesh.rotation.y = (Math.random() - 0.5) * Math.PI * 2
+
+//     scene.add(mesh)
+// }
+
+// // Tip 22
+// const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5)
+
+// const material = new THREE.MeshNormalMaterial()
+
+// for(let i = 0; i < 50; i++)
+// {
+//     const mesh = new THREE.Mesh(geometry, material)
+//     mesh.position.x = (Math.random() - 0.5) * 10
+//     mesh.position.y = (Math.random() - 0.5) * 10
+//     mesh.position.z = (Math.random() - 0.5) * 10
+//     mesh.rotation.x = (Math.random() - 0.5) * Math.PI * 2
+//     mesh.rotation.y = (Math.random() - 0.5) * Math.PI * 2
+
+//     scene.add(mesh)
+// }
+
+// // Tip 29
+// renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+// // Tip 31, 32, 34 and 35
+// const shaderGeometry = new THREE.PlaneGeometry(10, 10, 256, 256)
+
+// const shaderMaterial = new THREE.ShaderMaterial({
+//     uniforms:
+//     {
+//         uDisplacementTexture: { value: displacementTexture },
+//         uDisplacementStrength: { value: 1.5 }
+//     },
+//     vertexShader: `
+//         uniform sampler2D uDisplacementTexture;
+//         uniform float uDisplacementStrength;
+
+//         varying vec2 vUv;
+
+//         void main()
+//         {
+//             vec4 modelPosition = modelMatrix * vec4(position, 1.0);
+
+//             float elevation = texture2D(uDisplacementTexture, uv).r;
+//             if(elevation < 0.5)
+//             {
+//                 elevation = 0.5;
+//             }
+
+//             modelPosition.y += elevation * uDisplacementStrength;
+
+//             gl_Position = projectionMatrix * viewMatrix * modelPosition;
+
+//             vUv = uv;
+//         }
+//     `,
+//     fragmentShader: `
+//         uniform sampler2D uDisplacementTexture;
+
+//         varying vec2 vUv;
+
+//         void main()
+//         {
+//             float elevation = texture2D(uDisplacementTexture, vUv).r;
+//             if(elevation < 0.25)
+//             {
+//                 elevation = 0.25;
+//             }
+
+//             vec3 depthColor = vec3(1.0, 0.1, 0.1);
+//             vec3 surfaceColor = vec3(0.1, 0.0, 0.5);
+//             vec3 finalColor = vec3(0.0);
+//             finalColor.r += depthColor.r + (surfaceColor.r - depthColor.r) * elevation;
+//             finalColor.g += depthColor.g + (surfaceColor.g - depthColor.g) * elevation;
+//             finalColor.b += depthColor.b + (surfaceColor.b - depthColor.b) * elevation;
+
+//             gl_FragColor = vec4(finalColor, 1.0);
+//         }
+//     `
+// })
+
+// const shaderMesh = new THREE.Mesh(shaderGeometry, shaderMaterial)
+// shaderMesh.rotation.x = - Math.PI * 0.5
+// scene.add(shaderMesh)
