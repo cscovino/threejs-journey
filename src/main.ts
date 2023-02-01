@@ -13,6 +13,8 @@ import {
   PlaneGeometry,
   ShaderMaterial,
   LoadingManager,
+  Vector3,
+  Raycaster,
 } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -77,6 +79,7 @@ const overlayMaterial = new ShaderMaterial({
 const overlay = new Mesh(overlayGeometry, overlayMaterial);
 scene.add(overlay);
 
+let sceneReady = false;
 // Loaders
 const loadingElement = document.querySelector('.loading-bar') as HTMLElement;
 const loadingManager = new LoadingManager(
@@ -87,6 +90,10 @@ const loadingManager = new LoadingManager(
       loadingElement.classList.add('ended');
       loadingElement.style.transform = '';
     });
+
+    setTimeout(() => {
+      sceneReady = true;
+    }, 2000);
   },
   // Progess
   (_, itemsLoaded, itemsTotal) => {
@@ -127,14 +134,31 @@ scene.environment = environmentMap;
 debugObject.envMapIntensity = 2.5;
 
 // Models
-gltfLoader.load('/models/FlightHelmet/glTF/FlightHelmet.gltf', (gltf) => {
-  gltf.scene.scale.set(10, 10, 10);
-  gltf.scene.position.set(0, -4, 0);
+gltfLoader.load('/models/DamagedHelmet/glTF/DamagedHelmet.gltf', (gltf) => {
+  gltf.scene.scale.set(2.5, 2.5, 2.5);
   gltf.scene.rotation.y = Math.PI * 0.5;
   scene.add(gltf.scene);
 
   updateAllMaterials();
 });
+
+// Points of interest
+const raycaster = new Raycaster();
+
+const points = [
+  {
+    position: new Vector3(1.55, 0.3, -0.6),
+    element: document.querySelector('.point-0') as HTMLElement,
+  },
+  {
+    position: new Vector3(0.5, 0.8, -1.6),
+    element: document.querySelector('.point-1') as HTMLElement,
+  },
+  {
+    position: new Vector3(1.6, -1.3, -0.7),
+    element: document.querySelector('.point-2') as HTMLElement,
+  },
+];
 
 // Lights
 const directionalLight = new DirectionalLight('#ffffff', 3);
@@ -179,7 +203,32 @@ const tick = () => {
   // Clock
   const elapsedTime = clock.getElapsedTime();
 
-  // Update material
+  // Go through each point
+  if (sceneReady) {
+    points.forEach((point) => {
+      const screenPosition = point.position.clone();
+      screenPosition.project(camera);
+
+      raycaster.setFromCamera(screenPosition, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      if (intersects.length === 0) {
+        point.element.classList.add('visible');
+      } else {
+        const intersectionDistance = intersects[0].distance;
+        const pointDistance = point.position.distanceTo(camera.position);
+        if (intersectionDistance < pointDistance) {
+          point.element.classList.remove('visible');
+        } else {
+          point.element.classList.add('visible');
+        }
+      }
+
+      const translateX = screenPosition.x * SIZES.width * 0.5;
+      const translateY = -screenPosition.y * SIZES.height * 0.5;
+      point.element.style.transform = `translate(${translateX}px, ${translateY}px)`;
+    });
+  }
 
   // Update controls
   controls.update();
